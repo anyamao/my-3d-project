@@ -67,17 +67,38 @@ const Scene: React.FC = () => {
           rotation: [-2, Math.PI, 0],
           fov: 50,
         }}
-        shadows
+        shadows={true} // Disable shadows if not needed
       >
-        <ambientLight intensity={0.5} />
         <directionalLight
-          position={[10, 10, 5]}
-          intensity={1}
+          position={[20, 30, 10]}
+          intensity={5}
+          color="#ffffffff"
           castShadow
-          shadow-mapSize-width={2048}
-          shadow-mapSize-height={2048}
+          shadow-mapSize={[8192, 8192]}
+          shadow-camera-left={-50}
+          shadow-camera-right={50}
+          shadow-camera-top={50}
+          shadow-camera-bottom={-50}
+          shadow-camera-far={200}
+          shadow-bias={-0.001}
+        />
+        <directionalLight
+          position={[10, 5, 0]}
+          intensity={1}
+          color="#ffffffff"
         />
 
+        <ambientLight intensity={1.5} color="#ffffffff" />
+
+        {/* Floor mesh for shadows */}
+        <mesh
+          rotation={[-Math.PI / 2, 0, 0]}
+          position={[0, -2, 0]}
+          receiveShadow
+        >
+          <planeGeometry args={[200, 200]} />
+          <meshStandardMaterial color="#ffffffff" roughness={0.5} />
+        </mesh>
         <Suspense fallback={null}>
           <BlenderModel
             ref={animationControllerRef}
@@ -85,9 +106,9 @@ const Scene: React.FC = () => {
             onAnimationComplete={handleAnimationComplete}
             onAnimationStop={() => setIsAnimationPlaying(false)}
           />
-          <Environment preset="city" />
+          {/* Remove Environment if it adds light */}
+          {/* <Environment preset="city" /> */}
         </Suspense>
-
         <OrbitControls
           enablePan={true}
           enableZoom={true}

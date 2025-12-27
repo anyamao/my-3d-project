@@ -46,7 +46,7 @@ const BlenderModel = forwardRef<AnimationController, BlenderModelProps>(
     const isPlayingRef = useRef(false);
 
     // Load the model
-    const gltf = useLoader(GLTFLoader, "/models/Panda_sixth.glb");
+    const gltf = useLoader(GLTFLoader, "/models/Panda_nine.glb");
 
     // Expose control methods to parent
     useImperativeHandle(ref, () => ({
