@@ -31,8 +31,8 @@ const AnimationControls: React.FC<AnimationControlsProps> = ({
 
       <img
         alt="Dashboard"
-        src="./Dashboard_w_shadow.png"
-        className="w-[560px] fixed top-0 mt-[-30px]  ml-[-40px] flex  z-10 "
+        src="./Dashboard_2.png"
+        className="w-[530px] fixed top-0 mt-[-30px]  ml-[-30px] flex  z-10 "
       ></img>
       <div className=" fixed top-0 mt-[155px]  ml-[95px] w-[280px] flex  flex-col z-20 ">
         <div className="w-full h-[40px] flex  items-center shadow-md rounded-full p-[10px] mt-[5px]">
