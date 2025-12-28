@@ -14,16 +14,26 @@ interface BlenderModelProps {
   onFrameUpdate?: (frame: number) => void;
   onAnimationComplete?: () => void;
   onAnimationStop?: () => void;
+  animationSpeed?: number; // New prop for animation speed
 }
 
 export interface AnimationController {
   playToFrame50: () => void;
   playFromFrame50ToEnd: () => void;
   getCurrentState: () => { isPlaying: boolean };
+  setAnimationSpeed: (speed: number) => void; // New method
 }
 
 const BlenderModel = forwardRef<AnimationController, BlenderModelProps>(
-  ({ onFrameUpdate, onAnimationComplete, onAnimationStop }, ref) => {
+  (
+    {
+      onFrameUpdate,
+      onAnimationComplete,
+      onAnimationStop,
+      animationSpeed = 0.5,
+    },
+    ref
+  ) => {
     const group = useRef<Group>(null);
     const mixer = useRef<AnimationMixer | null>(null);
     const action = useRef<THREE.AnimationAction | null>(null);
@@ -44,6 +54,7 @@ const BlenderModel = forwardRef<AnimationController, BlenderModelProps>(
     );
     const totalDuration = useRef<number>(0);
     const isPlayingRef = useRef(false);
+    const speedRef = useRef(animationSpeed); // Store current speed
 
     // Load the model
     const gltf = useLoader(GLTFLoader, "/models/Panda_nine.glb");
@@ -60,6 +71,7 @@ const BlenderModel = forwardRef<AnimationController, BlenderModelProps>(
           action.current.stop();
           action.current.time = 0;
           action.current.paused = false;
+          action.current.setEffectiveTimeScale(speedRef.current);
           action.current.play();
         }
 
@@ -80,6 +92,7 @@ const BlenderModel = forwardRef<AnimationController, BlenderModelProps>(
           action.current.stop();
           action.current.time = PAUSE_FRAME / FRAME_RATE;
           action.current.paused = false;
+          action.current.setEffectiveTimeScale(speedRef.current);
           action.current.play();
         }
 

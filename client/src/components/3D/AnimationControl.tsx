@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import {
   Search,
   Sun,
+  Moon,
   Wind,
   CloudRain,
   Droplet,
@@ -10,6 +11,7 @@ import {
   Cloud,
   CloudSnow,
   CloudLightning,
+  Loader,
 } from "lucide-react";
 import { WeatherService, WeatherData } from "../../services/WeatherService";
 
@@ -22,6 +24,10 @@ interface AnimationControlsProps {
   isAnimationComplete: boolean;
   isAnimationPlaying: boolean;
   onWeatherChange?: (weatherType: string, intensity: number) => void;
+  onWeatherSearch?: (weatherData: WeatherData) => Promise<void>; // New prop
+  onResetCamera?: () => void; // Add this new prop
+  onToggleNightMode?: () => void; // Add this prop
+  isNightMode?: boolean; // Add this prop
 }
 
 const AnimationControls: React.FC<AnimationControlsProps> = ({
@@ -33,6 +39,10 @@ const AnimationControls: React.FC<AnimationControlsProps> = ({
   isAnimationComplete,
   isAnimationPlaying,
   onWeatherChange,
+  onWeatherSearch,
+  onResetCamera,
+  onToggleNightMode, // Destructure new prop
+  isNightMode = false, // Default to false
 }) => {
   const [city, setCity] = useState("");
   const [weather, setWeather] = useState<WeatherData | null>(null);
@@ -40,6 +50,47 @@ const AnimationControls: React.FC<AnimationControlsProps> = ({
   const [error, setError] = useState("");
   const [isCelsius, setIsCelsius] = useState(true);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [isSearchEnabled, setIsSearchEnabled] = useState(true);
+  const [animationState, setAnimationState] = useState<
+    "idle" | "playingFirstHalf" | "pausedAt50" | "playingSecondHalf"
+  >("idle");
+
+  const handlePersonStandingClick = () => {
+    if (onResetCamera) {
+      onResetCamera();
+    }
+  };
+  const handleMoonClick = () => {
+    console.log("🌙 Moon icon clicked");
+    if (onToggleNightMode) {
+      onToggleNightMode();
+    } else {
+      console.log("⚠️ onToggleNightMode prop is undefined!");
+    }
+  };
+
+  useEffect(() => {
+    if (isAnimationPlaying) {
+      if (currentFrame < 50) {
+        setAnimationState("playingFirstHalf");
+        setIsSearchEnabled(false);
+      } else if (currentFrame >= 50 && !isAnimationComplete) {
+        setAnimationState("playingSecondHalf");
+        setIsSearchEnabled(false);
+      }
+    } else {
+      if (currentFrame === 50) {
+        setAnimationState("pausedAt50");
+        setIsSearchEnabled(true);
+      } else if (isAnimationComplete) {
+        setAnimationState("idle");
+        setIsSearchEnabled(true);
+      } else {
+        setAnimationState("idle");
+        setIsSearchEnabled(true);
+      }
+    }
+  }, [currentFrame, isAnimationPlaying, isAnimationComplete]);
 
   // Load default weather on mount
   useEffect(() => {
@@ -51,6 +102,13 @@ const AnimationControls: React.FC<AnimationControlsProps> = ({
       const defaultWeather = await WeatherService.getCurrentWeather("London");
       setWeather(defaultWeather);
       update3DWeather(defaultWeather);
+
+      if (defaultWeather.weather.length > 0) {
+        const weatherId = defaultWeather.weather[0].id;
+        if (WeatherService.shouldPlayFirstHalf(weatherId)) {
+          onPlayToFrame50?.();
+        }
+      }
     } catch (err) {
       console.error("Failed to load default weather:", err);
     }
@@ -78,7 +136,7 @@ const AnimationControls: React.FC<AnimationControlsProps> = ({
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!city.trim()) return;
+    if (!city.trim() || !isSearchEnabled || isAnimationPlaying) return;
 
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
@@ -92,6 +150,19 @@ const AnimationControls: React.FC<AnimationControlsProps> = ({
         const weatherData = await WeatherService.getCurrentWeather(city);
         setWeather(weatherData);
         update3DWeather(weatherData);
+        if (onWeatherSearch) {
+          await onWeatherSearch(weatherData);
+        }
+        if (weatherData.weather.length > 0) {
+          const weatherId = weatherData.weather[0].id;
+          const hasPrecipitation = WeatherService.hasPrecipitation(weatherId);
+
+          if (hasPrecipitation && animationState === "idle") {
+            onPlayToFrame50?.();
+          } else if (!hasPrecipitation && animationState === "pausedAt50") {
+            onPlayFromFrame50ToEnd?.();
+          }
+        }
       } catch (err: any) {
         setError(err.message || "Failed to fetch weather");
         console.error("Weather fetch error:", err);
@@ -102,8 +173,24 @@ const AnimationControls: React.FC<AnimationControlsProps> = ({
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!isSearchEnabled) return;
     setCity(e.target.value);
     setError("");
+  };
+
+  const getAnimationStatus = () => {
+    switch (animationState) {
+      case "playingFirstHalf":
+        return "Panda is seeking shelter...";
+      case "pausedAt50":
+        return "Panda is waiting for clear weather...";
+      case "playingSecondHalf":
+        return "Panda is coming out...";
+      case "idle":
+        return `Ready for weather search`;
+      default:
+        return "";
+    }
   };
 
   const getWeatherIcon = (weatherId?: number) => {
@@ -118,28 +205,28 @@ const AnimationControls: React.FC<AnimationControlsProps> = ({
     switch (description) {
       case "clear":
         return (
-          <Sun className="text-yellow-400 w-[100px] h-[100px] mr-[-15px]" />
+          <Sun className="text-yellow-400 pointer-events-none w-[100px] h-[100px] mr-[-15px]" />
         );
       case "clouds":
         return (
-          <Cloud className="text-blue-400 w-[100px] h-[100px] mr-[-15px]" />
+          <Cloud className="text-blue-400 pointer-events-none w-[100px] h-[100px] mr-[-15px]" />
         );
       case "rain":
       case "drizzle":
         return (
-          <CloudRain className="text-blue-400 w-[100px] h-[100px] mr-[-15px]" />
+          <CloudRain className="text-blue-400 pointer-events-none w-[100px] h-[100px] mr-[-15px]" />
         );
       case "snow":
         return (
-          <CloudSnow className="text-blue-300 w-[100px] h-[100px] mr-[-15px]" />
+          <CloudSnow className="text-blue-300 pointer-events-none w-[100px] h-[100px] mr-[-15px]" />
         );
       case "thunderstorm":
         return (
-          <CloudLightning className="text-purple-400 w-[100px] h-[100px] mr-[-15px]" />
+          <CloudLightning className="text-purple-400 pointer-events-none w-[100px] h-[100px] mr-[-15px]" />
         );
       default:
         return (
-          <Sun className="text-yellow-400 w-[100px] h-[100px] mr-[-15px]" />
+          <Sun className="text-yellow-400 pointer-events-none w-[100px] h-[100px] mr-[-15px]" />
         );
     }
   };
@@ -191,32 +278,84 @@ const AnimationControls: React.FC<AnimationControlsProps> = ({
   const weatherDescription = getWeatherDescription();
 
   return (
-    <div className="relative top-0 mt-[-30px] ml-[20px] flex z-10">
+    <div className="relative top-0 mt-[-30px] ml-[20px] flex z-10 ">
       <a
-        className="text-[16px] fixed text-white z-30 top-0 right-0 mt-[20px] mr-[90px] cursor-pointer hover:underline"
+        className="text-[16px] fixed text-white z-30 top-0 right-0 mt-[20px] mr-[125px] lg:mr-[175px] xl:mr-[375px] transition-all duration-300 cursor-pointer hover:underline"
         href="https://t.me/anyamaoo"
       >
         anyamao's weather app
       </a>
 
-      <PersonStanding className="fixed text-white w-[25px] h-[25px] top-0 right-0 mt-[20px] hover:scale-125 transition-translate duration-300 transition-all hover:rotate-45 cursor-pointer mr-[50px] z-30" />
+      <PersonStanding
+        onClick={handlePersonStandingClick}
+        className="fixed text-white w-[25px] h-[25px] top-0 right-0 mt-[20px] hover:scale-125 transition-translate duration-300 transition-all hover:rotate-45 cursor-pointer mr-[85px] lg:mr-[135px] xl:mr-[335px] z-30"
+      />
+      <Moon
+        onClick={handleMoonClick}
+        className={` ${
+          isNightMode ? "" : "hidden"
+        } fixed text-white w-[25px] h-[25px] top-0 right-0 mt-[20px] hover:scale-125 transition-translate duration-300 transition-all hover:rotate-45 cursor-pointer mr-[50px] lg:mr-[100px] xl:mr-[300px] z-30`}
+      />
+      <Sun
+        onClick={handleMoonClick}
+        className={`fixed ${
+          isNightMode ? "hidden" : ""
+        } text-white w-[25px] h-[25px] top-0 right-0 mt-[20px] hover:scale-125 transition-translate duration-300 transition-all hover:rotate-45 cursor-pointer mr-[50px] lg:mr-[100px] xl:mr-[300px] z-30`}
+      />
 
-      <Settings className="text-lime-600 w-[25px] h-[25px] fixed top-0 right-0 mt-[20px] hover:scale-125 transition-translate duration-300 transition-all hover:rotate-45 cursor-pointer mr-[10px] z-30" />
+      <Settings className="text-lime-600 w-[25px] h-[25px] fixed top-0 right-0 mt-[20px] hover:scale-125 transition-translate duration-300 transition-all hover:rotate-45 cursor-pointer mr-[10px] lg:mr-[60px] xl:mr-[260px] z-30" />
+      <img
+        src={` ${
+          animationState === "idle" || animationState === "playingSecondHalf"
+            ? "panda_out.png"
+            : "/panda_in_house.png"
+        }`}
+        alt="panda"
+        className=" w-[120px] h-[120px] fixed bottom-0 right-0 mb-[20px] pointer-event-none mr-[10px] lg:mr-[60px] xl:mr-[260px] z-30"
+      />
 
+      <div className="text-[16px] min-w-[200px]   text-white fixed flex items-center justify-center top-0 mt-[40px] transition-all duration-300 ml-[150px]  lg:ml-[175px] xl:ml-[405px] left-0">
+        {getAnimationStatus()}
+      </div>
       <img
         alt="Dashboard"
         src="./Dashboards_4.png"
-        className="w-[540px] fixed top-0 mt-[-50px] ml-[-20px] min-w-[540px] flex z-10 pointer-events-none"
+        className="w-[540px] transition-all duration-300 fixed top-0 mt-[-50px] ml-[-20px] lg:ml-[10px] xl:ml-[240px] min-w-[540px] flex z-10 pointer-events-none"
       />
+      <div
+        className={` ${
+          weatherDescription === "Snow" || weatherDescription === "Light snow"
+            ? "bg-white"
+            : ""
+        }
+            ${weatherDescription === "Thunderstorm" ? "bg-black" : ""}
+            ${
+              weatherDescription === "Drizzle" ||
+              weatherDescription === "Rain" ||
+              weatherDescription === "Light Rain"
+                ? "bg-blue-500"
+                : ""
+            }  bg-none  transition-all duration-300  w-full h-full fixed z-15 top-0 left-0 opacity-20 pointer-events-none`}
+      ></div>
 
-      <div className="fixed top-0 mt-[110px] ml-[105px] w-[280px] flex flex-col z-20">
+      <div
+        className={` ${
+          isNightMode ? "bg-black" : ""
+        }  bg-none transition-all duration-300 w-full h-full fixed z-40 top-0 left-0 opacity-30 pointer-events-none`}
+      ></div>
+
+      <div className="fixed top-0 mt-[110px] ml-[105px] transition-all duration-300  lg:ml-[135px] xl:ml-[365px] w-[280px] flex flex-col z-20">
         {/* Search Bar */}
         <form onSubmit={handleSearch} className="w-full">
           <div className="w-full h-[40px] flex items-center shadow-md rounded-full bg-white bg-opacity-70 p-[10px] mt-[5px]">
             <Search className="text-lime-700 mr-[10px] w-[20px] hover:scale-110 transition-translate duration-300" />
             <input
               type="text"
-              placeholder="Type your city here..."
+              placeholder={
+                !isSearchEnabled
+                  ? "Wait for animation to finish..."
+                  : "Type your city here..."
+              }
               className="outline-none bg-transparent text-[15px] text-gray-600 flex-1"
               value={city}
               onChange={handleInputChange}
@@ -236,10 +375,10 @@ const AnimationControls: React.FC<AnimationControlsProps> = ({
         {/* Weather Header */}
         <div
           className={`w-full flex ${
-            error ? "mt-[0px]" : "mt-[15px]"
+            error ? "mt-[-10px]" : "mt-[15px]"
           } justify-between border-b-[1px] border-b-gray-300 p-[10px] pb-[20px]`}
         >
-          <div className="flex flex-col">
+          <div className="flex flex-col w-full">
             <div className="text-[30px] font-medium">{cityName}</div>
 
             <div className="flex flex-row items-center mt-[-10px]">
@@ -267,7 +406,7 @@ const AnimationControls: React.FC<AnimationControlsProps> = ({
               </div>
             </div>
 
-            <div className="text-gray-500 text-[16px] mt-1">
+            <div className="text-gray-500 text-[16px] mt-1 pointer-events-none">
               {weatherDescription}
             </div>
 
@@ -288,7 +427,11 @@ const AnimationControls: React.FC<AnimationControlsProps> = ({
           {getWeatherIcon()}
         </div>
         {/* Weather Stats */}
-        <div className="flex flex-row justify-between mt-[25px] px-[5px] pb-[30px] border-b-[1px] border-b-gray-300">
+        <div
+          className={`flex flex-row justify-between mt-[15px] px-[5px] ${
+            error ? "pb-[10px]" : "pb-[30px]"
+          } border-b-[1px] border-b-gray-300`}
+        >
           <div className="flex flex-col items-start">
             <div className="text-[16px] text-gray-500">Wind Speed</div>
             <Wind className="w-[40px] h-[40px] text-lime-600 mt-1" />

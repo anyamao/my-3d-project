@@ -14,6 +14,7 @@ const WeatherEffects: React.FC<WeatherEffectsProps> = ({
   windStrength = 0.1,
 }) => {
   const particlesRef = useRef<THREE.Points>(null);
+  const overlayRef = useRef<THREE.Mesh>(null);
   const particleCount = Math.floor(intensity * 2000);
 
   // Create particle geometry
@@ -67,6 +68,13 @@ const WeatherEffects: React.FC<WeatherEffectsProps> = ({
     return null;
   }, [type]);
 
+  const overlayOpacity = useMemo(() => {
+    if (type === "snow") {
+      return intensity * 0.15; // 0.15 max opacity at full intensity
+    }
+    return 0;
+  }, [type, intensity]);
+
   useFrame(() => {
     if (particlesRef.current && type !== "none" && particleGeometry) {
       const positions = particlesRef.current.geometry.attributes.position
@@ -94,11 +102,29 @@ const WeatherEffects: React.FC<WeatherEffectsProps> = ({
   if (type === "none" || !particleGeometry || !particleMaterial) return null;
 
   return (
-    <points
-      ref={particlesRef}
-      geometry={particleGeometry}
-      material={particleMaterial}
-    />
+    <>
+      {/* Snow particles */}
+      {particleGeometry && particleMaterial && (
+        <points
+          ref={particlesRef}
+          geometry={particleGeometry}
+          material={particleMaterial}
+        />
+      )}
+
+      {/* White overlay for snow effect */}
+      {type === "snow" && overlayOpacity > 0 && (
+        <mesh ref={overlayRef}>
+          <planeGeometry args={[100, 100]} />
+          <meshBasicMaterial
+            color={0xffffff}
+            transparent={true}
+            opacity={overlayOpacity}
+            depthWrite={false} // Important: don't write to depth buffer
+          />
+        </mesh>
+      )}
+    </>
   );
 };
 

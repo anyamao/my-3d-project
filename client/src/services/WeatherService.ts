@@ -96,4 +96,17 @@ export class WeatherService {
     if (weatherId > 800 && weatherId < 900) return "clouds";
     return "unknown";
   }
+  static hasPrecipitation(weatherId: number): boolean {
+    // Weather IDs for precipitation (rain, snow, drizzle, thunderstorm)
+    if (weatherId >= 200 && weatherId < 300) return true; // Thunderstorm
+    if (weatherId >= 300 && weatherId < 400) return true; // Drizzle
+    if (weatherId >= 500 && weatherId < 600) return true; // Rain
+    if (weatherId >= 600 && weatherId < 700) return true; // Snow
+    return false;
+  }
+
+  static shouldPlayFirstHalf(weatherId: number): boolean {
+    // Play first half (0-50) for precipitation weather
+    return this.hasPrecipitation(weatherId);
+  }
 }

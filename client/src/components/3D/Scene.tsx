@@ -1,4 +1,10 @@
-import React, { Suspense, useState, useRef, useCallback } from "react";
+import React, {
+  Suspense,
+  useState,
+  useRef,
+  useEffect,
+  useCallback,
+} from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import BlenderModel from "./BlenderModel";
@@ -16,7 +22,90 @@ const Scene: React.FC = () => {
   const [weatherType, setWeatherType] = useState<"none" | "snow" | "rain">(
     "none"
   );
+  const [isNightMode, setIsNightMode] = useState(false);
+  const [ambientLightIntensity, setAmbientLightIntensity] = useState(2);
+  const [directionalLightIntensity, setDirectionalLightIntensity] = useState(5);
   const [weatherIntensity, setWeatherIntensity] = useState(0.5);
+  const handleToggleNightMode = useCallback(() => {
+    setIsNightMode((prev) => !prev);
+
+    if (isNightMode) {
+      // Switching to DAY mode
+      setAmbientLightIntensity(2);
+      setDirectionalLightIntensity(5);
+      console.log("🌞 Switching to DAY mode");
+    } else {
+      // Switching to NIGHT mode
+      setAmbientLightIntensity(0.5);
+      setDirectionalLightIntensity(0.5);
+      console.log("🌙 Switching to NIGHT mode");
+    }
+  }, [isNightMode]);
+
+  // Ref for OrbitControls
+  const orbitControlsRef = useRef<any>(null);
+
+  // Debug: Check when OrbitControls mounts
+  useEffect(() => {
+    console.log("Scene mounted");
+
+    // Check ref periodically
+    const interval = setInterval(() => {
+      if (orbitControlsRef.current) {
+        console.log(
+          "✓ OrbitControls ref is now available:",
+          orbitControlsRef.current
+        );
+        clearInterval(interval);
+      }
+    }, 100);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Function to reset camera
+  const handleResetCamera = useCallback(() => {
+    console.log("🎯 handleResetCamera called from AnimationControls");
+
+    if (orbitControlsRef.current) {
+      console.log("✅ OrbitControls ref found!");
+      const controls = orbitControlsRef.current;
+      const camera = controls.object;
+
+      console.log("📷 Current camera position:", {
+        x: camera.position.x,
+        y: camera.position.y,
+        z: camera.position.z,
+      });
+      console.log("🎯 Current target:", {
+        x: controls.target.x,
+        y: controls.target.y,
+        z: controls.target.z,
+      });
+
+      // Store enabled state
+      const wasEnabled = controls.enabled;
+
+      // Disable controls during reset
+      controls.enabled = false;
+
+      // Set new position
+      camera.position.set(-3, 7, -5.7);
+      controls.target.set(-0.5, 7, 0);
+
+      // Force update
+      controls.update();
+
+      // Re-enable after delay
+      setTimeout(() => {
+        if (orbitControlsRef.current) {
+          orbitControlsRef.current.enabled = wasEnabled;
+          console.log("✅ Controls re-enabled");
+        }
+      }, 100);
+    } else {
+    }
+  }, []);
 
   const handleWeatherChange = useCallback(
     (type: "none" | "snow" | "rain", intensity: number) => {
@@ -73,11 +162,14 @@ const Scene: React.FC = () => {
   }, [lastPressedButton]);
 
   return (
-    <div className="w-full h-screen bg-blue-200 relative">
+    <div
+      className={`w-full h-screen ${
+        isNightMode ? "bg-[#1d1f22]" : "bg-blue-200"
+      } relative`}
+    >
       <Canvas
         camera={{
-          position: [5, 20, 5],
-          rotation: [-2, Math.PI, 0],
+          position: [-3, 7, -5.7],
           fov: 50,
         }}
         shadows={true}
@@ -91,41 +183,44 @@ const Scene: React.FC = () => {
 
         <directionalLight
           position={[20, 30, 10]}
-          intensity={5}
+          intensity={directionalLightIntensity}
           color="#8400ffff"
         />
+        {isNightMode && <fog attach="fog" args={["#000022", 10, 50]} />}
 
-        <ambientLight intensity={2} color="#ff0000ff" />
+        <ambientLight intensity={ambientLightIntensity} color="#ff0000ff" />
 
         {/* Floor mesh for shadows */}
         <mesh
           rotation={[-Math.PI / 2, 0, 0]}
-          position={[0, -2, 0]}
+          position={[30, -2, 0]}
           receiveShadow
         >
           <planeGeometry args={[200, 200]} />
           <meshStandardMaterial color="#ffffffff" roughness={0.5} />
         </mesh>
 
-        <Suspense fallback={null}>
-          <BlenderModel
-            ref={animationControllerRef}
-            onFrameUpdate={handleFrameUpdate}
-            onAnimationComplete={handleAnimationComplete}
-            onAnimationStop={() => setIsAnimationPlaying(false)}
-          />
-        </Suspense>
+        {/* Temporarily remove Suspense to test if it's causing the issue */}
+        <BlenderModel
+          ref={animationControllerRef}
+          onFrameUpdate={handleFrameUpdate}
+          onAnimationComplete={handleAnimationComplete}
+          onAnimationStop={() => setIsAnimationPlaying(false)}
+        />
 
+        {/* OrbitControls MUST be last in the Canvas */}
         <OrbitControls
+          ref={orbitControlsRef}
+          target={[-0.5, 7, 0]}
           enablePan={true}
           enableZoom={true}
           enableRotate={true}
-          maxDistance={20}
-          minDistance={3}
+          maxDistance={200}
+          minDistance={0}
         />
       </Canvas>
 
-      {/* AnimationControls outside Canvas */}
+      {/* AnimationControls with onResetCamera prop */}
       <AnimationControls
         onPlayToFrame50={handlePlayToFrame50}
         onPlayFromFrame50ToEnd={handlePlayFromFrame50ToEnd}
@@ -134,7 +229,10 @@ const Scene: React.FC = () => {
         currentFrame={currentFrame}
         isAnimationComplete={isAnimationComplete}
         isAnimationPlaying={isAnimationPlaying}
-        onWeatherChange={handleWeatherChange} // Pass the weather handler
+        onWeatherChange={handleWeatherChange}
+        onResetCamera={handleResetCamera} // This was missing!
+        isNightMode={isNightMode} // Pass current mode
+        onToggleNightMode={handleToggleNightMode}
       />
     </div>
   );
