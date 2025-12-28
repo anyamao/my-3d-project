@@ -206,7 +206,7 @@ const AnimationControls: React.FC<AnimationControlsProps> = ({
       <img
         alt="Dashboard"
         src="./Dashboards_4.png"
-        className="w-[540px] fixed top-0 mt-[-50px] ml-[-20px] min-w-[540px] flex z-10"
+        className="w-[540px] fixed top-0 mt-[-50px] ml-[-20px] min-w-[540px] flex z-10 pointer-events-none"
       />
 
       <div className="fixed top-0 mt-[110px] ml-[105px] w-[280px] flex flex-col z-20">
