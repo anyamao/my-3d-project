@@ -1,11 +1,10 @@
-// WeatherEffects.tsx
 import React, { useRef, useMemo } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 
 interface WeatherEffectsProps {
   type: "snow" | "rain" | "none";
-  intensity: number; // 0 to 1
+  intensity: number;
   windStrength?: number;
 }
 
@@ -15,28 +14,28 @@ const WeatherEffects: React.FC<WeatherEffectsProps> = ({
   windStrength = 0.1,
 }) => {
   const particlesRef = useRef<THREE.Points>(null);
-  const particleCount = Math.floor(intensity * 5000); // Adjust based on intensity
+  const particleCount = Math.floor(intensity * 2000);
 
   // Create particle geometry
   const particleGeometry = useMemo(() => {
+    if (type === "none") return null;
+
     const positions = new Float32Array(particleCount * 3);
     const velocities = new Float32Array(particleCount * 3);
 
     for (let i = 0; i < particleCount; i++) {
       const i3 = i * 3;
-      // Random starting positions
-      positions[i3] = (Math.random() - 0.5) * 50;
-      positions[i3 + 1] = Math.random() * 30 + 10; // Start above
-      positions[i3 + 2] = (Math.random() - 0.5) * 50;
+      positions[i3] = (Math.random() - 0.5) * 40;
+      positions[i3 + 1] = Math.random() * 30 + 10;
+      positions[i3 + 2] = (Math.random() - 0.5) * 40;
 
-      // Random velocities
       if (type === "snow") {
-        velocities[i3] = (Math.random() - 0.5) * 0.1 + windStrength; // Gentle drift
-        velocities[i3 + 1] = -Math.random() * 0.5 - 0.2; // Slow fall
+        velocities[i3] = (Math.random() - 0.5) * 0.1 + windStrength;
+        velocities[i3 + 1] = -Math.random() * 0.5 - 0.2;
         velocities[i3 + 2] = (Math.random() - 0.5) * 0.1;
       } else if (type === "rain") {
         velocities[i3] = (Math.random() - 0.5) * 0.1 + windStrength * 2;
-        velocities[i3 + 1] = -Math.random() * 2 - 1.5; // Fast fall
+        velocities[i3 + 1] = -Math.random() * 2 - 1.5;
         velocities[i3 + 2] = (Math.random() - 0.5) * 0.1;
       }
     }
@@ -65,11 +64,11 @@ const WeatherEffects: React.FC<WeatherEffectsProps> = ({
         opacity: 0.6,
       });
     }
-    return new THREE.PointsMaterial();
+    return null;
   }, [type]);
 
   useFrame(() => {
-    if (particlesRef.current && type !== "none") {
+    if (particlesRef.current && type !== "none" && particleGeometry) {
       const positions = particlesRef.current.geometry.attributes.position
         .array as Float32Array;
       const velocities = particlesRef.current.geometry.attributes.velocity
@@ -77,29 +76,22 @@ const WeatherEffects: React.FC<WeatherEffectsProps> = ({
 
       for (let i = 0; i < particleCount; i++) {
         const i3 = i * 3;
-
-        // Update position based on velocity
         positions[i3] += velocities[i3];
         positions[i3 + 1] += velocities[i3 + 1];
         positions[i3 + 2] += velocities[i3 + 2];
 
-        // Reset particles that fall below ground
         if (positions[i3 + 1] < -5) {
-          positions[i3] = (Math.random() - 0.5) * 50;
+          positions[i3] = (Math.random() - 0.5) * 40;
           positions[i3 + 1] = Math.random() * 10 + 20;
-          positions[i3 + 2] = (Math.random() - 0.5) * 50;
+          positions[i3 + 2] = (Math.random() - 0.5) * 40;
         }
-
-        // Add some randomness to movement
-        velocities[i3] += (Math.random() - 0.5) * 0.01;
-        velocities[i3 + 2] += (Math.random() - 0.5) * 0.01;
       }
 
       particlesRef.current.geometry.attributes.position.needsUpdate = true;
     }
   });
 
-  if (type === "none") return null;
+  if (type === "none" || !particleGeometry || !particleMaterial) return null;
 
   return (
     <points

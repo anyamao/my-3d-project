@@ -1,8 +1,9 @@
 import React, { Suspense, useState, useRef, useCallback } from "react";
 import { Canvas } from "@react-three/fiber";
-import { OrbitControls, Environment } from "@react-three/drei";
+import { OrbitControls } from "@react-three/drei";
 import BlenderModel from "./BlenderModel";
 import AnimationControls from "./AnimationControl";
+import WeatherEffects from "./WeatherEffects";
 
 const Scene: React.FC = () => {
   // State to track which button was last pressed
@@ -12,6 +13,18 @@ const Scene: React.FC = () => {
   const [currentFrame, setCurrentFrame] = useState(0);
   const [isAnimationComplete, setIsAnimationComplete] = useState(false);
   const [isAnimationPlaying, setIsAnimationPlaying] = useState(false);
+  const [weatherType, setWeatherType] = useState<"none" | "snow" | "rain">(
+    "none"
+  );
+  const [weatherIntensity, setWeatherIntensity] = useState(0.5);
+
+  const handleWeatherChange = useCallback(
+    (type: "none" | "snow" | "rain", intensity: number) => {
+      setWeatherType(type);
+      setWeatherIntensity(intensity);
+    },
+    []
+  );
 
   // Ref to control the animation
   const animationControllerRef = useRef<{
@@ -67,20 +80,22 @@ const Scene: React.FC = () => {
           rotation: [-2, Math.PI, 0],
           fov: 50,
         }}
-        shadows={true} // Disable shadows if not needed
+        shadows={true}
       >
+        {/* Weather Effects Component */}
+        <WeatherEffects
+          type={weatherType}
+          intensity={weatherIntensity}
+          windStrength={0.2}
+        />
+
         <directionalLight
           position={[20, 30, 10]}
           intensity={5}
-          color="#ffffffff"
-        />
-        <directionalLight
-          position={[10, 5, 0]}
-          intensity={1}
-          color="#ffffffff"
+          color="#8400ffff"
         />
 
-        <ambientLight intensity={1.5} color="#ffffffff" />
+        <ambientLight intensity={2} color="#ff0000ff" />
 
         {/* Floor mesh for shadows */}
         <mesh
@@ -91,6 +106,7 @@ const Scene: React.FC = () => {
           <planeGeometry args={[200, 200]} />
           <meshStandardMaterial color="#ffffffff" roughness={0.5} />
         </mesh>
+
         <Suspense fallback={null}>
           <BlenderModel
             ref={animationControllerRef}
@@ -98,9 +114,8 @@ const Scene: React.FC = () => {
             onAnimationComplete={handleAnimationComplete}
             onAnimationStop={() => setIsAnimationPlaying(false)}
           />
-          {/* Remove Environment if it adds light */}
-          {/* <Environment preset="city" /> */}
         </Suspense>
+
         <OrbitControls
           enablePan={true}
           enableZoom={true}
@@ -110,6 +125,7 @@ const Scene: React.FC = () => {
         />
       </Canvas>
 
+      {/* AnimationControls outside Canvas */}
       <AnimationControls
         onPlayToFrame50={handlePlayToFrame50}
         onPlayFromFrame50ToEnd={handlePlayFromFrame50ToEnd}
@@ -118,6 +134,7 @@ const Scene: React.FC = () => {
         currentFrame={currentFrame}
         isAnimationComplete={isAnimationComplete}
         isAnimationPlaying={isAnimationPlaying}
+        onWeatherChange={handleWeatherChange} // Pass the weather handler
       />
     </div>
   );
