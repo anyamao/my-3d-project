@@ -12,12 +12,30 @@ const PORT = process.env.PORT || 5001;
 // Middleware
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || "http://localhost:3000",
+    origin: "*", // Allow all origins for now
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
   })
 );
 app.use(express.json());
 
+// Handle preflight requests
+app.options("*", cors());
+
+app.use(express.json());
+app.use("/api/weather", weatherRoutes);
+
+// Health check
+app.get("/api/health", (req, res) => {
+  res.json({ status: "OK", timestamp: new Date().toISOString() });
+});
+
+// Start server
+app.listen(PORT, () => {
+  console.log(`✅ Server running on http://localhost:${PORT}`);
+  console.log(`📡 Weather API endpoint: http://localhost:${PORT}/api/weather`);
+});
 // Routes
 app.use("/api/weather", weatherRoutes);
 

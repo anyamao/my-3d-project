@@ -18,10 +18,14 @@ export interface WeatherData {
     deg: number;
   };
   name: string;
+  timezone: number;
   sys: {
     country: string;
+    sunrise: number;
+    sunset: number;
   };
   dt: number;
+  visibility?: number;
 }
 
 export interface ForecastData {
@@ -50,6 +54,33 @@ export class WeatherService {
     }
 
     return response.json();
+  }
+
+  static formatTimeWithTimezone(
+    unixTimestamp: number,
+    timezoneOffset: number
+  ): string {
+    const date = new Date((unixTimestamp + timezoneOffset) * 1000);
+
+    return date.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: "UTC",
+    });
+  }
+
+  static formatLocalTime(unixTimestamp: number): string {
+    return new Date(unixTimestamp * 1000).toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }
+
+  static getLocalTimeFromUTC(
+    unixTimestamp: number,
+    timezoneOffset: number
+  ): Date {
+    return new Date((unixTimestamp + timezoneOffset) * 1000);
   }
 
   static async getWeatherByCoords(
@@ -81,12 +112,62 @@ export class WeatherService {
     return response.json();
   }
 
+  static isNightTime(weatherData: WeatherData): boolean {
+    if (
+      !weatherData.sys?.sunrise ||
+      !weatherData.sys?.sunset ||
+      !weatherData.dt ||
+      weatherData.timezone === undefined
+    ) {
+      return false;
+    }
+
+    const currentUtc = weatherData.dt;
+    const sunriseUtc = weatherData.sys.sunrise;
+    const sunsetUtc = weatherData.sys.sunset;
+    const timezoneOffset = weatherData.timezone;
+
+    const currentLocal = currentUtc + timezoneOffset;
+    const sunriseLocal = sunriseUtc + timezoneOffset;
+    const sunsetLocal = sunsetUtc + timezoneOffset;
+
+    const normalizedCurrent = currentLocal % 86400;
+    const normalizedSunset = sunsetLocal % 86400;
+    const normalizedSunrise = sunriseLocal % 86400;
+
+    if (normalizedSunset < normalizedSunrise) {
+      return (
+        normalizedCurrent >= normalizedSunset &&
+        normalizedCurrent < normalizedSunrise
+      );
+    } else {
+      return (
+        normalizedCurrent >= normalizedSunset ||
+        normalizedCurrent < normalizedSunrise
+      );
+    }
+  }
+
+  static getCurrentCityTime(weatherData: WeatherData): string {
+    if (!weatherData.dt || weatherData.timezone === undefined) return "N/A";
+
+    const utcSeconds = weatherData.dt;
+    const timezoneOffsetSeconds = weatherData.timezone;
+
+    const localTimeMs = (utcSeconds + timezoneOffsetSeconds) * 1000;
+
+    return new Date(localTimeMs).toLocaleTimeString([], {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+  }
+
   static getWeatherIconUrl(iconCode: string): string {
     return `https://openweathermap.org/img/wn/${iconCode}@2x.png`;
   }
 
   static getWeatherDescription(weatherId: number): string {
-    // Map weather IDs to descriptions
     if (weatherId >= 200 && weatherId < 300) return "thunderstorm";
     if (weatherId >= 300 && weatherId < 400) return "drizzle";
     if (weatherId >= 500 && weatherId < 600) return "rain";
@@ -97,16 +178,14 @@ export class WeatherService {
     return "unknown";
   }
   static hasPrecipitation(weatherId: number): boolean {
-    // Weather IDs for precipitation (rain, snow, drizzle, thunderstorm)
-    if (weatherId >= 200 && weatherId < 300) return true; // Thunderstorm
-    if (weatherId >= 300 && weatherId < 400) return true; // Drizzle
-    if (weatherId >= 500 && weatherId < 600) return true; // Rain
-    if (weatherId >= 600 && weatherId < 700) return true; // Snow
+    if (weatherId >= 200 && weatherId < 300) return true;
+    if (weatherId >= 300 && weatherId < 400) return true;
+    if (weatherId >= 500 && weatherId < 600) return true;
+    if (weatherId >= 600 && weatherId < 700) return true;
     return false;
   }
 
   static shouldPlayFirstHalf(weatherId: number): boolean {
-    // Play first half (0-50) for precipitation weather
     return this.hasPrecipitation(weatherId);
   }
 }

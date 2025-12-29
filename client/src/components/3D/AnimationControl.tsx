@@ -11,7 +11,6 @@ import {
   Cloud,
   CloudSnow,
   CloudLightning,
-  Loader,
 } from "lucide-react";
 import { WeatherService, WeatherData } from "../../services/WeatherService";
 
@@ -23,11 +22,14 @@ interface AnimationControlsProps {
   currentFrame: number;
   isAnimationComplete: boolean;
   isAnimationPlaying: boolean;
-  onWeatherChange?: (weatherType: string, intensity: number) => void;
-  onWeatherSearch?: (weatherData: WeatherData) => Promise<void>; // New prop
-  onResetCamera?: () => void; // Add this new prop
-  onToggleNightMode?: () => void; // Add this prop
-  isNightMode?: boolean; // Add this prop
+  onWeatherChange?: (
+    weatherType: "none" | "snow" | "rain",
+    intensity: number
+  ) => void;
+  onWeatherSearch?: (weatherData: WeatherData) => Promise<void>;
+  onResetCamera?: () => void;
+  onToggleNightMode?: () => void;
+  isNightMode?: boolean;
 }
 
 const AnimationControls: React.FC<AnimationControlsProps> = ({
@@ -41,8 +43,8 @@ const AnimationControls: React.FC<AnimationControlsProps> = ({
   onWeatherChange,
   onWeatherSearch,
   onResetCamera,
-  onToggleNightMode, // Destructure new prop
-  isNightMode = false, // Default to false
+  onToggleNightMode,
+  isNightMode = false,
 }) => {
   const [city, setCity] = useState("");
   const [weather, setWeather] = useState<WeatherData | null>(null);
@@ -56,17 +58,10 @@ const AnimationControls: React.FC<AnimationControlsProps> = ({
   >("idle");
 
   const handlePersonStandingClick = () => {
-    if (onResetCamera) {
-      onResetCamera();
-    }
+    if (onResetCamera) onResetCamera();
   };
   const handleMoonClick = () => {
-    console.log("🌙 Moon icon clicked");
-    if (onToggleNightMode) {
-      onToggleNightMode();
-    } else {
-      console.log("⚠️ onToggleNightMode prop is undefined!");
-    }
+    if (onToggleNightMode) onToggleNightMode();
   };
 
   useEffect(() => {
@@ -92,7 +87,6 @@ const AnimationControls: React.FC<AnimationControlsProps> = ({
     }
   }, [currentFrame, isAnimationPlaying, isAnimationComplete]);
 
-  // Load default weather on mount
   useEffect(() => {
     fetchDefaultWeather();
   }, []);
@@ -165,7 +159,6 @@ const AnimationControls: React.FC<AnimationControlsProps> = ({
         }
       } catch (err: any) {
         setError(err.message || "Failed to fetch weather");
-        console.error("Weather fetch error:", err);
       } finally {
         setLoading(false);
       }
@@ -249,7 +242,6 @@ const AnimationControls: React.FC<AnimationControlsProps> = ({
     return `${weather.main.humidity}%`;
   };
 
-  // Calculate rain chance based on weather conditions
   const getRainChance = () => {
     if (!weather) return "30%";
 
@@ -259,7 +251,6 @@ const AnimationControls: React.FC<AnimationControlsProps> = ({
     if (description === "rain" || description === "drizzle") return "80%";
     if (description === "thunderstorm") return "90%";
     if (weather.main.humidity > 80) return "60%";
-    if (weather.clouds?.all > 70) return "50%";
     return "30%";
   };
 
@@ -319,7 +310,7 @@ const AnimationControls: React.FC<AnimationControlsProps> = ({
       </div>
       <img
         alt="Dashboard"
-        src="./Dashboards_4.png"
+        src="./Dashboard.png"
         className="w-[540px] transition-all duration-300 fixed top-0 mt-[-50px] ml-[-20px] lg:ml-[10px] xl:ml-[240px] min-w-[540px] flex z-10 pointer-events-none"
       />
       <div
@@ -372,7 +363,6 @@ const AnimationControls: React.FC<AnimationControlsProps> = ({
             </div>
           )}
         </form>
-        {/* Weather Header */}
         <div
           className={`w-full flex ${
             error ? "mt-[-10px]" : "mt-[15px]"
@@ -409,8 +399,6 @@ const AnimationControls: React.FC<AnimationControlsProps> = ({
             <div className="text-gray-500 text-[16px] mt-1 pointer-events-none">
               {weatherDescription}
             </div>
-
-            {/* Feels like temperature */}
             {weather && (
               <div className="text-gray-700 text-[16px] mt-[0px]">
                 Feels like &nbsp;
@@ -426,7 +414,7 @@ const AnimationControls: React.FC<AnimationControlsProps> = ({
 
           {getWeatherIcon()}
         </div>
-        {/* Weather Stats */}
+
         <div
           className={`flex flex-row justify-between mt-[15px] px-[5px] ${
             error ? "pb-[10px]" : "pb-[30px]"
@@ -470,19 +458,19 @@ const AnimationControls: React.FC<AnimationControlsProps> = ({
             <div className="flex justify-between mt-[5px] border-b-[1px] pb-[3px] border-b-gray-300">
               <span>Sunrise:</span>
               <span className="text-[15px] text-black">
-                {new Date(weather.sys.sunrise * 1000).toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
+                {WeatherService.formatTimeWithTimezone(
+                  weather.sys.sunrise,
+                  weather.timezone
+                )}
               </span>
             </div>
             <div className="flex justify-between mt-[5px] ">
               <span>Sunset:</span>
               <span className="text-[15px] text-black">
-                {new Date(weather.sys.sunset * 1000).toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
+                {WeatherService.formatTimeWithTimezone(
+                  weather.sys.sunset,
+                  weather.timezone
+                )}
               </span>
             </div>
           </div>

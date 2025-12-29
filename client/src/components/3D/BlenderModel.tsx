@@ -14,14 +14,14 @@ interface BlenderModelProps {
   onFrameUpdate?: (frame: number) => void;
   onAnimationComplete?: () => void;
   onAnimationStop?: () => void;
-  animationSpeed?: number; // New prop for animation speed
+  animationSpeed?: number;
 }
 
 export interface AnimationController {
   playToFrame50: () => void;
   playFromFrame50ToEnd: () => void;
   getCurrentState: () => { isPlaying: boolean };
-  setAnimationSpeed: (speed: number) => void; // New method
+  setAnimationSpeed: (speed: number) => void;
 }
 
 const BlenderModel = forwardRef<AnimationController, BlenderModelProps>(
@@ -38,35 +38,26 @@ const BlenderModel = forwardRef<AnimationController, BlenderModelProps>(
     const mixer = useRef<AnimationMixer | null>(null);
     const action = useRef<THREE.AnimationAction | null>(null);
 
-    // Animation state
     const [currentFrame, setCurrentFrame] = useState(0);
     const [isPaused, setIsPaused] = useState(false);
     const pauseStartTime = useRef<number | null>(null);
 
-    // Animation settings
     const FRAME_RATE = 30;
     const PAUSE_FRAME = 50;
-    const PAUSE_DURATION = 10000; // 10 seconds in milliseconds
 
-    // Add state to track animation phase
     const animationPhase = useRef<"idle" | "playingTo50" | "playingToEnd">(
       "idle"
     );
     const totalDuration = useRef<number>(0);
     const isPlayingRef = useRef(false);
-    const speedRef = useRef(animationSpeed); // Store current speed
+    const speedRef = useRef(animationSpeed);
 
-    // Load the model
-    const gltf = useLoader(GLTFLoader, "/models/Panda_nine.glb");
+    const gltf = useLoader(GLTFLoader, "/models/Panda_model.glb");
 
-    // Expose control methods to parent
     useImperativeHandle(ref, () => ({
       playToFrame50: () => {
         if (!action.current || animationPhase.current === "playingTo50") return;
 
-        console.log("Playing to frame 50");
-
-        // Reset animation
         if (action.current) {
           action.current.stop();
           action.current.time = 0;
@@ -85,9 +76,6 @@ const BlenderModel = forwardRef<AnimationController, BlenderModelProps>(
         if (!action.current || animationPhase.current === "playingToEnd")
           return;
 
-        console.log("Playing from frame 50 to end");
-
-        // Start from frame 50
         if (action.current) {
           action.current.stop();
           action.current.time = PAUSE_FRAME / FRAME_RATE;
@@ -105,6 +93,12 @@ const BlenderModel = forwardRef<AnimationController, BlenderModelProps>(
       getCurrentState: () => ({
         isPlaying: isPlayingRef.current,
       }),
+      setAnimationSpeed: (speed: number) => {
+        speedRef.current = speed;
+        if (action.current && !action.current.paused) {
+          action.current.setEffectiveTimeScale(speed);
+        }
+      },
     }));
 
     useEffect(() => {
@@ -125,26 +119,17 @@ const BlenderModel = forwardRef<AnimationController, BlenderModelProps>(
             gltf.animations[0];
           action.current = mixer.current.clipAction(animationClip);
 
-          // Store total duration
           totalDuration.current = animationClip.duration;
 
-          // Set to play once (we'll handle looping manually)
           action.current.setLoop(THREE.LoopOnce, 1);
           action.current.clampWhenFinished = true;
 
-          // Start in idle state
           animationPhase.current = "idle";
           isPlayingRef.current = false;
           setIsPaused(true);
           pauseStartTime.current = null;
           action.current.time = 0;
-          action.current.paused = true; // Start paused
-
-          console.log(
-            `Animation loaded. Total duration: ${
-              totalDuration.current
-            }s, Frames: ${totalDuration.current * FRAME_RATE}`
-          );
+          action.current.paused = true;
         }
       }
 
@@ -169,35 +154,23 @@ const BlenderModel = forwardRef<AnimationController, BlenderModelProps>(
       const currentFrameNumber = Math.floor(currentTime * FRAME_RATE);
       setCurrentFrame(currentFrameNumber);
 
-      // Update parent with current frame
       if (onFrameUpdate) {
         onFrameUpdate(currentFrameNumber);
       }
 
-      // Handle different animation phases
       switch (animationPhase.current) {
         case "playingTo50":
-          // Check if we've reached the target frame
           if (currentFrameNumber >= PAUSE_FRAME) {
-            console.log(`Reached frame 50, stopping...`);
-
-            // Stop the animation at frame 50
             action.current.paused = true;
             action.current.time = PAUSE_FRAME / FRAME_RATE;
             setIsPaused(true);
             animationPhase.current = "idle";
             stopAnimation();
-
-            console.log("Animation stopped at frame 50");
           }
           break;
 
         case "playingToEnd":
-          // Check if animation has reached the end
           if (currentTime >= totalDuration.current) {
-            console.log(`Animation complete`);
-
-            // Stop at the end
             action.current.paused = true;
             setIsPaused(true);
             animationPhase.current = "idle";
@@ -211,11 +184,9 @@ const BlenderModel = forwardRef<AnimationController, BlenderModelProps>(
           break;
 
         case "idle":
-          // Do nothing - animation is paused
           break;
       }
 
-      // Update mixer only if not paused
       if (!action.current.paused) {
         mixer.current.update(delta);
       }
@@ -233,8 +204,5 @@ const BlenderModel = forwardRef<AnimationController, BlenderModelProps>(
     );
   }
 );
-
-// Add display name for debugging
-BlenderModel.displayName = "BlenderModel";
 
 export default BlenderModel;
