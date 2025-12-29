@@ -1,4 +1,4 @@
-const API_BASE_URL = "http://localhost:5001/api/weather";
+const API_BASE_URL = "/api/weather";
 
 export interface WeatherData {
   main: {
@@ -45,7 +45,7 @@ export interface ForecastData {
 export class WeatherService {
   static async getCurrentWeather(city: string): Promise<WeatherData> {
     const response = await fetch(
-      `${API_BASE_URL}/current/${encodeURIComponent(city)}`
+      `${API_BASE_URL}?city=${encodeURIComponent(city)}`
     );
 
     if (!response.ok) {
