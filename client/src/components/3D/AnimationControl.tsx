@@ -56,6 +56,11 @@ const AnimationControls: React.FC<AnimationControlsProps> = ({
   const [animationState, setAnimationState] = useState<
     "idle" | "playingFirstHalf" | "pausedAt50" | "playingSecondHalf"
   >("idle");
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const handlePersonStandingClick = () => {
     if (onResetCamera) onResetCamera();
@@ -271,7 +276,13 @@ const AnimationControls: React.FC<AnimationControlsProps> = ({
   return (
     <div className="relative top-0 mt-[-30px] ml-[20px] flex z-10 ">
       <a
-        className="text-[16px] fixed text-white z-30 top-0 right-0 mt-[20px] mr-[125px] lg:mr-[175px] xl:mr-[375px] transition-all duration-300 cursor-pointer hover:underline"
+        style={{ transitionDelay: "200ms" }}
+        className={` ${
+          isMounted
+            ? "opacity-100 translate-y-0 duration-1000"
+            : "opacity-0 -translate-y-20 "
+        } 
+          text-[16px] fixed text-white z-30 top-0 right-0 mt-[20px] mr-[125px] lg:mr-[175px] xl:mr-[375px] transition-all duration-300 cursor-pointer hover:underline`}
         href="https://t.me/anyamaoo"
       >
         anyamao's weather app
