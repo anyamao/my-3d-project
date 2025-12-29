@@ -52,7 +52,7 @@ const BlenderModel = forwardRef<AnimationController, BlenderModelProps>(
     const isPlayingRef = useRef(false);
     const speedRef = useRef(animationSpeed);
 
-    const gltf = useLoader(GLTFLoader, "/models/Panda_model.glb");
+    const gltf = useLoader(GLTFLoader, "/models/Panda_final.glb");
 
     useImperativeHandle(ref, () => ({
       playToFrame50: () => {
